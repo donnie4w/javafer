@@ -30,38 +30,23 @@ import java.util.logging.Logger;
 public class HttpClient {
     public static Logger logger = Logger.getLogger("HttpClient");
     public static int connectionRequestTimeout = 5000;
-    private final InputStream trustStoreStream;
-    private final String keyStorePassword;
+    private InputStream trustStoreStream = null;
+    private String keyStorePassword = null;
 
     public HttpClient(InputStream trustStoreStream, String keyStorePassword) {
         this.trustStoreStream = trustStoreStream;
         this.keyStorePassword = keyStorePassword;
     }
 
-    public byte[] post(String url, byte[] bs, Map<String, String> headerMap) throws Exception {
-        HttpPost httpPost = new HttpPost(url);
-        httpPost.setEntity(new ByteArrayEntity(bs));
-        if (headerMap != null) {
-            headerMap.forEach((key, value) -> httpPost.setHeader(key, value));
-        }
-        try (CloseableHttpResponse response = getHttpClient(url,this.trustStoreStream,this.keyStorePassword).execute(httpPost)) {
-            return EntityUtils.toByteArray(response.getEntity());
-        }
-    }
-
-
-
-
     public static CloseableHttpClient createHttpClient(InputStream trustStoreStream, String keyStorePassword) throws CertificateException, KeyStoreException, NoSuchAlgorithmException, IOException, KeyManagementException {
         RequestConfig config = RequestConfig.custom().setConnectionRequestTimeout(connectionRequestTimeout).build();
-        return HttpClients.custom().setSSLSocketFactory(SSLUtil.newSSLConnectionSocketFactory(trustStoreStream,keyStorePassword)).setDefaultRequestConfig(config).build();
+        return HttpClients.custom().setSSLSocketFactory(SSLUtil.newSSLConnectionSocketFactory(trustStoreStream, keyStorePassword)).setDefaultRequestConfig(config).build();
     }
 
     public static CloseableHttpClient createHttpClientForHttp() {
         RequestConfig config = RequestConfig.custom().setConnectionRequestTimeout(connectionRequestTimeout).build();
         return HttpClients.custom().setDefaultRequestConfig(config).build();
     }
-
 
     /**
      * defaultPost：Bypassing client certificate validation
@@ -72,7 +57,7 @@ public class HttpClient {
         if (headerMap != null) {
             headerMap.forEach((key, value) -> httpPost.setHeader(key, value));
         }
-        try (CloseableHttpResponse response = getHttpClient(url,null,null).execute(httpPost)) {
+        try (CloseableHttpResponse response = getHttpClient(url, null, null).execute(httpPost)) {
             return EntityUtils.toByteArray(response.getEntity());
         }
     }
@@ -84,7 +69,7 @@ public class HttpClient {
             headerMap.forEach((key, value) -> httpGet.setHeader(key, value));
         }
 
-        try (CloseableHttpResponse response = getHttpClient(url,null,null).execute(httpGet)) {
+        try (CloseableHttpResponse response = getHttpClient(url, null, null).execute(httpGet)) {
             StatusLine statusLine = response.getStatusLine();
             if (statusLine.getStatusCode() >= 200 && statusLine.getStatusCode() < 300) {
                 return EntityUtils.toByteArray(response.getEntity());
@@ -94,14 +79,24 @@ public class HttpClient {
         }
     }
 
-
-    private static CloseableHttpClient getHttpClient(String urlStr,InputStream trustStoreStream, String keyStorePassword) throws CertificateException, KeyStoreException, NoSuchAlgorithmException, IOException, KeyManagementException, URISyntaxException {
+    private static CloseableHttpClient getHttpClient(String urlStr, InputStream trustStoreStream, String keyStorePassword) throws CertificateException, KeyStoreException, NoSuchAlgorithmException, IOException, KeyManagementException, URISyntaxException {
         URI uri = new URI(urlStr);
         boolean isHttps = uri.getScheme().equals("https");
         if (isHttps) {
-            return createHttpClient(trustStoreStream,keyStorePassword);
+            return createHttpClient(trustStoreStream, keyStorePassword);
         } else {
             return createHttpClientForHttp();
+        }
+    }
+
+    public byte[] post(String url, byte[] bs, Map<String, String> headerMap) throws Exception {
+        HttpPost httpPost = new HttpPost(url);
+        httpPost.setEntity(new ByteArrayEntity(bs));
+        if (headerMap != null) {
+            headerMap.forEach((key, value) -> httpPost.setHeader(key, value));
+        }
+        try (CloseableHttpResponse response = getHttpClient(url, this.trustStoreStream, this.keyStorePassword).execute(httpPost)) {
+            return EntityUtils.toByteArray(response.getEntity());
         }
     }
 }
